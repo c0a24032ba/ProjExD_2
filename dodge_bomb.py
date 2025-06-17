@@ -1,8 +1,8 @@
 import os
 import random
+import time
 import sys
 import pygame as pg
-import time
 
 
 WIDTH, HEIGHT = 1100, 650
@@ -27,34 +27,41 @@ def check_bound(rct: pg.Rect) -> tuple[bool, bool]:
     if rct.top < 0 or HEIGHT < rct.bottom: # 縦方向の画面外判定
         tate = False
     return yoko, tate  # 横方向，縦方向の画面内判定結果を返す
-       
-def gameover(screen: pg.Surface) -> None:
-    s = pg.Surface((WIDTH, HEIGHT))
-    s.set_alpha(180)
-    pg.draw.rect(s, (0, 0, 0), s.get_rect())
-    screen.blit(s, (0, 0))
-    
-    cry_img = pg.transform.rotozoom(pg.image.load("fig/8.png"),0, 0.9)
 
+
+def gameover(screen: pg.Surface) -> None:
+    blackout = pg.Surface((WIDTH, HEIGHT))
+    blackout.set_alpha(100)
+    blackout.fill((0, 0, 0))
+    screen.blit(blackout,(0, 0))
+    cry_img = pg.transform.rotozoom(pg.image.load("fig/8.png"),0, 0.9)
     cry_left = cry_img.get_rect()
     cry_left.center = (WIDTH//2-200, HEIGHT//2)
     screen.blit(cry_img, cry_left)
-
     cry_right = cry_img.get_rect()
     cry_right.center = (WIDTH//2+200, HEIGHT//2)
-    screen.blit(cry_img, cry_right)
-
+    screen.blit(cry_img, cry_right)  
     font = pg.font.Font(None, 80)
-    text = font.render("Game Over", True, (255, 255, 255))
-    text_rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
-    screen.blit(text, text_rect)
-
+    text = font.render("Game Over",True,(255, 255, 255))
+    text_rct = text.get_rect()
+    text_rct.center = (WIDTH//2, HEIGHT//2)
+    screen.blit(text,text_rct)
     pg.display.update()
     time.sleep(5)
 
-    
+
+def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
+    bb_imgs = []
+    bb_accs = [a for a in range(1, 11)]
+    for r in range(1, 11):
+        bb_img = pg.Surface((20*r, 20*r))
+        pg.draw.circle(bb_img, (255, 0, 0), (10*r, 10*r), 10*r) 
+        bb_img.set_colorkey((0, 0, 0))
+        bb_imgs.append(bb_img)
+    return bb_imgs, bb_accs
 
 
+bb_imgs, bb_accs = init_bb_imgs()
 
 def main():
     pg.display.set_caption("逃げろ！こうかとん")
@@ -73,10 +80,13 @@ def main():
     clock = pg.time.Clock()
     tmr = 0
     while True:
+        avx = vx*bb_accs[min(tmr//500, 9)]
+        bb_img = bb_imgs[min(tmr//500, 9)]
+
         for event in pg.event.get():
             if event.type == pg.QUIT: 
                 return
-        if kk_rct.colliderect(bb_rct):  # こうかとんRectと爆弾Rectの衝突判定
+        if kk_rct.colliderect(bb_rct):
             gameover(screen)
             return
         screen.blit(bg_img, [0, 0]) 
@@ -99,7 +109,13 @@ def main():
         if check_bound(kk_rct) != (True, True):
             kk_rct.move_ip(-sum_mv[0], -sum_mv[1])  # 移動をなかったことにする
         screen.blit(kk_img, kk_rct)
-        bb_rct.move_ip(vx, vy)  # 爆弾の移動
+
+        acc = bb_accs[min(tmr//500, 9)]
+        avx = vx * bb_accs[min(tmr // 500, 9)]
+        avy = vy * bb_accs[min(tmr // 500, 9)]
+        bb_img = bb_imgs[min(tmr // 500, 9)]
+
+        bb_rct.move_ip(avx, avy)  # 爆弾の移動
         yoko, tate = check_bound(bb_rct)
         if not yoko:  # 横方向にはみ出ていたら
             vx *= -1
